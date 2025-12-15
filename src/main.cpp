@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "nmea_parser.hpp"
+#include "neo6m_gps.hpp"
 #include <ArduinoJson.h>
 #include <WiFiClientSecure.h>
 #include "WiFi.h"
@@ -28,6 +28,7 @@ void handle_wifi_connection();
 void connectAWS();
 void publish_gps_rmc(NMEA_GPRMC_t* rmc);
 void publish_gps_gga(NMEA_GGA_t* gga);
+void publish_gps(NMEA_GGA_t* gga, NMEA_GPRMC_t* rmc);
 void messageHandler(char* topic, byte* payload, unsigned int length);
 void setupTime();
 
@@ -37,6 +38,8 @@ void setup() {
   Serial2.begin(9600, SERIAL_8N1, 16, 17);
   pinMode(LED_BUILTIN, OUTPUT);
 
+  configure_neo6m(Serial2);
+  
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   net.setCACert(AWS_CERT_CA);
@@ -49,6 +52,7 @@ void setup() {
 void loop() {
   try {
     handle_wifi_connection();
+    read_from_gps();
 
     if (!isWifiConnected) return;
 
@@ -73,20 +77,24 @@ void loop() {
 void read_from_gps() {
   while (Serial2.available() > 0) {
     char c = Serial2.read();
-
     if (c == '\n') {
       gps_line.trim();
+
+      if (gps_data_ready == 2) {
+        publish_gps(&gga, &rmc);
+        // serializeJson(serialize_gps(&gga, &rmc), Serial);
+        gps_data_ready = 0;
+      }
 
       if (gps_line.startsWith("$GPRMC")) {
         NMEA_GPRMC_t rmc;
         if (parse_gprmc(gps_line.c_str(), &rmc)){
-          publish_gps_rmc(&rmc);
+          gps_data_ready++;
         }
-      }  
-      else if (gps_line.startsWith("$GPGGA")) {
+      } else if (gps_line.startsWith("$GPGGA")) {
         NMEA_GGA_t gga;
         if (parse_gpgga(gps_line.c_str(), &gga)) {
-          publish_gps_gga(&gga);
+          gps_data_ready++;
         }
       }
 
@@ -161,7 +169,17 @@ void publish_gps_gga(NMEA_GGA_t* gga) {
   client.publish(AWS_IOT_PUBLISH_TOPIC, buffer);
 }
 
+void publish_gps(NMEA_GGA_t* gga, NMEA_GPRMC_t* rmc) {
+  if (!client.connected()) return;
 
+  char buffer[256];
+  JsonDocument doc = serialize_gps(gga, rmc);
+  time(&now);
+  doc["timestamp"] = now;
+  serializeJson(doc, buffer);
+
+  client.publish(AWS_IOT_PUBLISH_TOPIC, buffer);
+}
 
 void setupTime() {
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);

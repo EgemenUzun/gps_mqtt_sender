@@ -1,4 +1,4 @@
-#include "nmea_parser.hpp"
+#include "neo6m_gps.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -262,4 +262,39 @@ JsonDocument serialize_gpgga(const NMEA_GGA_t *data) {
     doc["geoid_sep"]      = data->geoid_sep;
     doc["geo_sep_unit"]   = String(data->geo_sep_unit);
     return doc;
+}
+
+JsonDocument serialize_gps(const NMEA_GGA_t *gga, const NMEA_GPRMC_t *rmc) {
+    JsonDocument doc;
+    doc["id"]             = "06ABC123";
+    doc["latitude"]       = gga->latitude;
+    doc["lat_hemi"]       = String(gga->lat_hemi);
+    doc["longitude"]      = gga->longitude;
+    doc["lon_hemi"]       = String(gga->lon_hemi);
+    doc["fix_quality"]    = gga->fix_quality;
+    doc["num_satellites"] = gga->num_satellites;
+    doc["altitude_msl"]   = gga->altitude_msl;
+    doc["alt_unit"]       = String(gga->alt_unit);
+    doc["speed_knots"]    = rmc->speed_knots;
+    doc["track_angle"]    = rmc->track_angle;
+    doc["status"]         = String(rmc->status);
+    doc["date_utc"]       = rmc->date_utc;
+    doc["time_utc"]       = rmc->time_utc;
+    doc["timestamp"]      = 0;
+    return doc;
+}
+
+void send_payload(HardwareSerial &serial, const uint8_t *payload, size_t len) {
+    serial.write(payload, len);
+}
+
+void configure_neo6m(HardwareSerial &serial) {
+  send_payload(serial, setRate5Hz, sizeof(setRate5Hz));
+  send_payload(serial, disableGLL, sizeof(disableGLL));
+  send_payload(serial, disableGSA, sizeof(disableGSA));
+  send_payload(serial, disableGSV, sizeof(disableGSV));
+  send_payload(serial, disableVTG, sizeof(disableVTG));
+  send_payload(serial, enableGGA, sizeof(enableGGA));
+  send_payload(serial, enableRMC, sizeof(enableRMC));
+  send_payload(serial, saveConfig, sizeof(saveConfig));
 }

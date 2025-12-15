@@ -1,0 +1,121 @@
+#ifndef NMEA_PARSER_HPP
+#define NMEA_PARSER_HPP
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <HardwareSerial.h>
+
+#define NMEA_MAX_LEN 100
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    double time_utc;
+    char status;            // 'A' / 'V'
+    double latitude;
+    char lat_hemi;          // 'N' / 'S'
+    double longitude;
+    char lon_hemi;          // 'E' / 'W'
+    double speed_knots;
+    double track_angle;
+    uint32_t date_utc;
+} NMEA_GPRMC_t;
+
+typedef struct {
+    double time_utc;
+    double latitude;
+    char lat_hemi;
+    double longitude;
+    char lon_hemi;
+    int fix_quality;
+    int num_satellites;
+    double hdop;
+    double altitude_msl;
+    char alt_unit;
+    double geoid_sep;
+    char geo_sep_unit;
+} NMEA_GGA_t;
+
+const uint8_t setRate5Hz[] = {
+  0xB5,0x62,0x06,0x08,0x06,0x00,
+  0xC8,0x00,  // 200 ms
+  0x01,0x00,
+  0x01,0x00,
+  0xDE,0x6A
+};
+
+// Disable GLL
+const uint8_t disableGLL[] = {
+  0xB5,0x62,0x06,0x01,0x08,0x00,
+  0xF0,0x01,0x00,0x00,0x00,0x00,0x00,0x00,
+  0xFF,0x23
+};
+
+// Disable GSA
+const uint8_t disableGSA[] = {
+  0xB5,0x62,0x06,0x01,0x08,0x00,
+  0xF0,0x02,0x00,0x00,0x00,0x00,0x00,0x00,
+  0x00,0x2A
+};
+
+// Disable GSV
+const uint8_t disableGSV[] = {
+  0xB5,0x62,0x06,0x01,0x08,0x00,
+  0xF0,0x03,0x00,0x00,0x00,0x00,0x00,0x00,
+  0x01,0x31
+};
+
+// Disable VTG
+const uint8_t disableVTG[] = {
+  0xB5,0x62,0x06,0x01,0x08,0x00,
+  0xF0,0x05,0x00,0x00,0x00,0x00,0x00,0x00,
+  0x03,0x3F
+};
+
+// Enable GGA
+const uint8_t enableGGA[] = {
+  0xB5,0x62,0x06,0x01,0x08,0x00,
+  0xF0,0x00,0x01,0x00,0x00,0x00,0x00,0x00,
+  0xFF,0x19
+};
+
+// Enable RMC
+const uint8_t enableRMC[] = {
+  0xB5,0x62,0x06,0x01,0x08,0x00,
+  0xF0,0x04,0x01,0x00,0x00,0x00,0x00,0x00,
+  0x02,0x38
+};
+
+// Save configuration
+const uint8_t saveConfig[] = {
+  0xB5,0x62,0x06,0x09,0x0D,0x00,
+  0x00,0x00,0x00,0x00,
+  0xFF,0xFF,
+  0x00,0x00,0x00,0x00,0x00,
+  0x17,0x31,0xBF
+};
+
+void configure_neo6m(HardwareSerial &serial);
+void send_payload(HardwareSerial &serial, const uint8_t *payload, size_t len);
+bool nmea_check_checksum(const char *sentence);
+bool parse_gprmc(const char *sentence, NMEA_GPRMC_t *data);
+bool parse_gpgga(const char *sentence, NMEA_GGA_t *data);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+
+#include <ArduinoJson.h>
+
+JsonDocument serialize_gprmc(const NMEA_GPRMC_t *data);
+JsonDocument serialize_gpgga(const NMEA_GGA_t *data);
+JsonDocument serialize_gps(const NMEA_GGA_t *gga, const NMEA_GPRMC_t *rmc);
+
+#endif // __cplusplus
+
+#endif // NMEA_PARSER_HPP
