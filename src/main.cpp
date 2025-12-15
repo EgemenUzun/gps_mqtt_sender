@@ -5,6 +5,7 @@
 #include "WiFi.h"
 #include "secrets.h"
 #include <PubSubClient.h>
+#include <time.h>
 
 #define AWS_IOT_PUBLISH_TOPIC   "esp32/pub"
 
@@ -15,6 +16,12 @@ String gps_line = "";
 NMEA_GPRMC_t rmc;
 NMEA_GGA_t gga;
 bool isWifiConnected = false;
+volatile uint8_t gps_data_ready = 0;
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 0;
+const int   daylightOffset_sec = 0;
+bool isTimeConfigured = false;
+time_t now;
 
 void read_from_gps();
 void handle_wifi_connection();
@@ -22,6 +29,7 @@ void connectAWS();
 void publish_gps_rmc(NMEA_GPRMC_t* rmc);
 void publish_gps_gga(NMEA_GGA_t* gga);
 void messageHandler(char* topic, byte* payload, unsigned int length);
+void setupTime();
 
 
 void setup() {
@@ -44,9 +52,14 @@ void loop() {
 
     if (!isWifiConnected) return;
 
+    if (isWifiConnected && !isTimeConfigured) {
+      setupTime();
+    }
+
     if (!client.connected()) {
       connectAWS();
     }
+    
 
     client.loop();
     read_from_gps();
@@ -146,4 +159,18 @@ void publish_gps_gga(NMEA_GGA_t* gga) {
   serializeJson(serialize_gpgga(gga), buffer);
 
   client.publish(AWS_IOT_PUBLISH_TOPIC, buffer);
+}
+
+
+
+void setupTime() {
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+    struct tm timeinfo;
+    while (!getLocalTime(&timeinfo)) {
+        Serial.println("Waiting for NTP time...");
+        delay(1000);
+    }
+    Serial.println("Time synchronized");
+    isTimeConfigured = true;
 }
