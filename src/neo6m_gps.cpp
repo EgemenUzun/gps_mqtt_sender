@@ -271,7 +271,6 @@ JsonDocument serialize_gps(const NMEA_GGA_t *gga, const NMEA_GPRMC_t *rmc) {
     doc["lat_hemi"]       = String(gga->lat_hemi);
     doc["longitude"]      = gga->longitude;
     doc["lon_hemi"]       = String(gga->lon_hemi);
-    doc["fix_quality"]    = gga->fix_quality;
     doc["num_satellites"] = gga->num_satellites;
     doc["altitude_msl"]   = gga->altitude_msl;
     doc["alt_unit"]       = String(gga->alt_unit);
@@ -281,6 +280,7 @@ JsonDocument serialize_gps(const NMEA_GGA_t *gga, const NMEA_GPRMC_t *rmc) {
     doc["date_utc"]       = rmc->date_utc;
     doc["time_utc"]       = rmc->time_utc;
     doc["timestamp"]      = 0;
+    doc["route_id"]       = 1;
     return doc;
 }
 
