@@ -18,8 +18,8 @@ NMEA_GGA_t gga;
 bool isWifiConnected = false;
 volatile uint8_t gps_data_ready = 0;
 const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 0;
-const int   daylightOffset_sec = 0;
+uint64_t base_epoch_ms = 0;
+int64_t  base_uptime_us = 0;
 bool isTimeConfigured = false;
 
 void read_from_gps();
@@ -30,6 +30,7 @@ void publish_gps_gga(NMEA_GGA_t* gga);
 void publish_gps(NMEA_GGA_t* gga, NMEA_GPRMC_t* rmc);
 void messageHandler(char* topic, byte* payload, unsigned int length);
 void setupTime();
+uint64_t now_utc_ms();
 
 
 void setup() {
@@ -173,7 +174,7 @@ void publish_gps(NMEA_GGA_t* gga, NMEA_GPRMC_t* rmc) {
 
   char buffer[256];
   JsonDocument doc = serialize_gps(gga, rmc);
-  uint64_t utcMillis = ((uint64_t)time(NULL)) * 1000 + (esp_timer_get_time() % 1000000) / 1000;
+  uint64_t utcMillis = now_utc_ms();
   doc["timestamp"] = utcMillis;
   serializeJson(doc, buffer);
 
@@ -181,13 +182,21 @@ void publish_gps(NMEA_GGA_t* gga, NMEA_GPRMC_t* rmc) {
 }
 
 void setupTime() {
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    configTime(0, 0, ntpServer);
 
     struct tm timeinfo;
     while (!getLocalTime(&timeinfo)) {
-        Serial.println("Waiting for NTP time...");
         delay(1000);
     }
-    Serial.println("Time synchronized");
-    isTimeConfigured = true;
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+
+    base_epoch_ms = (uint64_t)tv.tv_sec * 1000ULL + tv.tv_usec / 1000ULL;
+    base_uptime_us = esp_timer_get_time();
+}
+
+uint64_t now_utc_ms() {
+    return base_epoch_ms +
+           (esp_timer_get_time() - base_uptime_us) / 1000ULL;
 }
