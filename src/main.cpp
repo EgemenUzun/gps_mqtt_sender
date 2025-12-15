@@ -21,7 +21,6 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 0;
 bool isTimeConfigured = false;
-time_t now;
 
 void read_from_gps();
 void handle_wifi_connection();
@@ -174,8 +173,8 @@ void publish_gps(NMEA_GGA_t* gga, NMEA_GPRMC_t* rmc) {
 
   char buffer[256];
   JsonDocument doc = serialize_gps(gga, rmc);
-  time(&now);
-  doc["timestamp"] = now;
+  uint64_t utcMillis = ((uint64_t)time(NULL)) * 1000 + (esp_timer_get_time() % 1000000) / 1000;
+  doc["timestamp"] = utcMillis;
   serializeJson(doc, buffer);
 
   client.publish(AWS_IOT_PUBLISH_TOPIC, buffer);
