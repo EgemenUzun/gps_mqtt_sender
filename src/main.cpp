@@ -38,6 +38,7 @@ void setup() {
   Serial2.begin(9600, SERIAL_8N1, 16, 17);
   pinMode(LED_BUILTIN, OUTPUT);
 
+  Serial.println("Configuring NEO-6M GPS...");
   configure_neo6m(Serial2);
   
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -182,6 +183,7 @@ void publish_gps(NMEA_GGA_t* gga, NMEA_GPRMC_t* rmc) {
 }
 
 void setupTime() {
+    Serial.println("Configuring time via NTP...");
     configTime(0, 0, ntpServer);
 
     struct tm timeinfo;
@@ -194,6 +196,8 @@ void setupTime() {
 
     base_epoch_ms = (uint64_t)tv.tv_sec * 1000ULL + tv.tv_usec / 1000ULL;
     base_uptime_us = esp_timer_get_time();
+    isTimeConfigured = true;
+    Serial.println("Time configured.");
 }
 
 uint64_t now_utc_ms() {
