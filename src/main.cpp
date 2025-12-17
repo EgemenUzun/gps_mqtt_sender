@@ -88,12 +88,10 @@ void read_from_gps() {
       }
 
       if (gps_line.startsWith("$GPRMC")) {
-        NMEA_GPRMC_t rmc;
         if (parse_gprmc(gps_line.c_str(), &rmc)){
           gps_data_ready++;
         }
       } else if (gps_line.startsWith("$GPGGA")) {
-        NMEA_GGA_t gga;
         if (parse_gpgga(gps_line.c_str(), &gga)) {
           gps_data_ready++;
         }
